@@ -4,7 +4,7 @@
   <title>Response to AI and Accessibility</title>
   <style>
    body { background: cornsilk; }
-   h1 { background: bisque; color: darkorchid; font-weight: bold; }
+   h1 { background: cornsilk; color: darkorchid; font-weight: bold; }
    .lite-mode { background: cornsilk; color: black }
    .dark-mode { background: black; color: magenta }
   </style>
@@ -12,10 +12,12 @@
    a {background: white; color: black}
    </style>
  </head>
- <body class="dark-mode">
-  function toggler() { document.body.classList.toggle("dark-mode"); }
-  <button onclick="toggler()"> Toggle Dark Mode </button>
-  <h1 style="font-weight:bold;font-size:larger;text-align:center; color:darkorchid" class="dark-mode">
+ <body>
+  function darktoggler() { document.body.classList.toggle("dark-mode"); }
+  <button onclick="darktoggler()"> Toggle Dark Mode </button>
+  function litetoggler() { document.body.classList.toggle("lite-mode"); }
+  <button onclick="litetoggler()"> Toggle Light Mode </button>
+  <h1 style="font-weight:bold;font-size:larger;text-align:center; color:darkorchid">
    For the Neurodivergent Employee or the Capitalist Employer?
   </h1>
   <p>
