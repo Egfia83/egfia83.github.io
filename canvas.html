@@ -2,10 +2,7 @@
 <html lang="en">
   <head>
     <title> Canvas Doc </title>
-  </head>
-  <body onload="draw();">
-    <canvas id = "plot" style="outline-style:solid;margin-right: auto;margin-left: auto;display: block;" id="display" width="800" height="800"></canvas>
-    function draw()
+	function draw()
       {
         const dspl = document.getElementById("display") ;
 	ctx = dspl.getContext("2d") ;	
@@ -15,6 +12,10 @@
 	x = w / 2 - s / 2 ;
 	y = h / 2 - s / 2 ;
 	ctx.fillRect(x, y, s, s) ;
-      }
+      }  
+  </head>
+  <body onload="draw();">
+    <canvas id = "plot" style="outline-style:solid;margin-right: auto;margin-left: auto;display: block;" id="display" width="800" height="800"></canvas>
+    
   </body>
 </html>
