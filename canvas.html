@@ -7,9 +7,14 @@
     <canvas id = "plot" style="outline-style:solid;margin-right: auto;margin-left: auto;display: block;" id="display" width="800" height="800"></canvas>
     function draw()
       {
-        const plot = document.getElementById("plot") ;
-        const ctx = plot.getContext("2d");	
-	      ctx.fillRect(50, 50, 50, 50) ;
+        const dspl = document.getElementById("display") ;
+	ctx = dspl.getContext("2d") ;	
+	w = dspl.width ;
+	h = dspl.height ;
+	s = w / 8 ;
+	x = w / 2 - s / 2 ;
+	y = h / 2 - s / 2 ;
+	ctx.fillRect(x, y, s, s) ;
       }
   </body>
 </html>
