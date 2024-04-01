@@ -14,10 +14,16 @@
 	y = h / 2 - s / 2 ;
 	ctx.fillRect(x, y, s, s) ;
       }  
+	document.addEventListener("keydown",keybind);
+    	function keybind()
+		{const.key = event.key;
+		}
+	 switch(event.key)
+		 {
+				 
 	</script>
   </head>
   <body onload="draw();">
     <canvas id = "display" style="outline-style:solid;margin-right: auto;margin-left: auto;display: block;" id="display" width="800" height="800"></canvas>
-    
   </body>
 </html>
