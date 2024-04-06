@@ -31,4 +31,42 @@
     A point I agree with is, although not highlighted in great detail in the video, was the idea of diverse representation meaning creating well-rounded characters of varying qualities - i.e. having Black heroes and Black villains. I think this comes up a lot with female representation, where the female heroes that are being written by mainstream media (by very possibly well-meaning male writers) are attempting to show positive representation, but shortchange the actual experience by making them dull and uninteresting. I have also heard this complaint about the “token gay friend” trope in some modern media that attempts to be inclusive but clearly failed to include the represented groups in the writing process. These are failings of the creative industry. But as the video fairly points out, critiques should come with the perspective of understanding that the developers (or writers or show runners) were attempting to create diversity in a well-meaning effort (and not assuming that there was any ill-attempt), and communities can vocally address their concerns not with vitriol but with an empathetic yet firm conviction to see better representation. 
   </p>
  </body>
+ <body onload="draw();">
+        <canvas id="plot" width="400" height="400"></canvas><script>
+      let ctx, w, h, s, x, y ;
+      function draw()
+      {
+        const dspl = document.getElementById("plot") ;
+        ctx = dspl.getContext("2d") ;    
+        w = dspl.width ;
+        h = dspl.height ;
+                ctx.fillStyle = "black";
+        s = w / 8 ;
+        x = w / 2 - s / 2 ;
+        y = h / 2 - s / 2 ;
+        ctx.fillRect(x, y, s, s) ; // x y width height
+      }
+      function keybind()
+      {
+        ctx.clearRect(x, y, s, s) ;
+        switch (event.key) 
+        {
+          case "ArrowLeft":
+            x = x - s ;
+            break ;
+          case "ArrowRight":
+            x = x + s ;
+            break ;
+          case "ArrowUp":
+            y = y - s ;
+            break ;
+          case "ArrowDown":
+            y = y + s ;
+            break ;
+        }
+        ctx.fillRect(x, y, s, s) ;
+      }
+      document.addEventListener('keydown', keybind);
+    </script>
+  </body>
 </html>
