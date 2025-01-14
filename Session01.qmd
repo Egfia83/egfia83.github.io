@@ -1,0 +1,626 @@
+## Agenda
+
+1. Course Overview
+2. Review of Regression
+3. Dinner Break
+4. Classification and Ethics
+5. Basic Feature Engineering
+6. Vocabulary
+
+# Course Overview
+
+## Expectations and assignments
+
+1. Homework assignments
+2. Exam
+3. Modeling Project
+4. Course Policies
+5. My expectations for you
+
+## Homeworks
+
+-   Create a `.rmd` or ideally `.qmd` file.
+-   Render it to `.html`.
+-   Publish both files on GitHub Pages.
+-   Send me a link from your `@willamette.edu` address.
+-   Consider sharing on e.g. your LinkedIn, or not.
+-   You may use R *or* Python
+    -   We introduce Python in a special King Day video lecture.
+
+## Midterm Exam
+
+-   I need to measure if I'm teaching well.
+-   Low stress for you.
+
+## Modeling Project
+
+-   Three part group project.
+-   We'll get there.
+
+## Course Policies
+
+-   Don't do anything you wouldn't do in 501/502/504
+-   LLMs are approved for use in this course.
+
+## My Expectations
+
+-   Professional carriage and mutual respect are paramount.
+-   Technical skills are secondary to interpersonal.
+-   Technical skills *support* interpersonal by facilitating insight.
+
+## About me
+- BA Mathematics, BS Computer Science (UChicago)
+- MS, PhD Computer Science (UNC Chapel Hill)
+- Data mining, formal analysis, complex models
+- Joined Willamette 2021
+
+## About you?
+  - Background
+  - Goals for this program and/or course
+
+## Basic concepts in Machine Learning
+
+- What is a data scientist?
+- What is machine learning? 
+- What is the role of judgment in machine learning?
+- What are the differences between machine learning, statistics and econometrics?
+- When is "mere" correlation enough? When is it not?
+
+## Packages
+
+- Today I use the following libraries:
+```{r}
+local({r <- getOption("repos")
+       r["CRAN"] <- "https://cran.r-project.org" 
+       options(repos=r)
+})
+# New?
+install.packages("tidyverse")
+install.packages("moderndive")
+install.packages("caret")
+install.packages("dslabs")
+# Just for the slides
+install.packages("thematic")
+```
+- You will have some but perhaps not others.
+
+## Libraries
+
+- I'll just include them upfront.
+```{r Libraries}
+library(tidyverse)
+library(moderndive)
+library(caret)
+library(dslabs)
+# Just for the slides
+library(thematic)
+theme_set(theme_dark())
+thematic_rmd(bg = "#111", fg = "#eee", accent = "#eee")
+```
+
+## Setup
+
+- We will work with a `wine` dataset that is enormous.
+  - Just to render a bit quickly, take a sample.
+  - You are welcome to work with the [full dataset](https://cd-public.github.io/courses/rmls25/dat/wine.rds)!
+
+```{r Setup}
+wine <- readRDS(gzcon(url("https://cd-public.github.io/courses/rmls25/dat/wine.rds")))
+# performance concession
+# wine <- readRDS(gzcon(url("https://cd-public.github.io/courses/rmls25/dat/w_1k.rds")))
+wine <- wine %>% drop_na(points, price)
+summary(wine)
+```
+
+# Review of Regression
+
+## Single Variable
+
+- Pick the poshest province.
+```{r Single Variable}
+wine <- wine %>%
+  mutate(bordeaux = (province == "Bordeaux"))
+wine <- wine %>% drop_na(bordeaux)
+top_n(wine, 10, bordeaux)
+```
+
+## Regress
+- Take a quick regression model over the wine.
+```{r Regress}
+m1 <- lm(price ~ points, data = wine)
+get_regression_table(m1)
+```
+## Let's draw it
+
+```{r Lets draw it 1}
+#| echo: false
+wine %>%
+  mutate(m1 = predict(m1)) %>%
+  ggplot() +
+  geom_smooth(aes(points, price)) +
+  geom_line(aes(points, m1), size = 2, color = "orange") +
+  labs(
+    title = "Regression of Price on Points",
+    x = "Points", y = "Price"
+  )
+```
+
+## Multiple regression
+
+```{r Multiple regression}
+m2 <- lm(price ~ points + bordeaux, data = wine)
+get_regression_table(m2)
+```
+
+## Let's draw it
+
+```{r Lets draw it 2}
+#| echo: false
+wine %>%
+  mutate(m2 = predict(m2)) %>%
+  ggplot() +
+  geom_smooth(aes(points, price)) +
+  geom_line(aes(x = points, y = m2, color = bordeaux), size = 2) +
+  labs(
+    title = "Multiple Regression of Price on Points and Bordeaux",
+    x = "Points", y = "Price"
+  )
+```
+
+## How about with an interaction?
+
+```{r Interaction}
+m3 <- lm(price ~ points * bordeaux, data = wine)
+get_regression_table(m3)
+```
+
+## Let's draw it
+```{r Lets draw it 3}
+#| echo: false
+wine %>%
+  mutate(m3 = predict(m3)) %>%
+  ggplot() +
+  geom_smooth(aes(points, price)) +
+  geom_line(aes(x = points, y = m3, color = bordeaux), size = 2) +
+  labs(
+    title = "Interaction Model: Price on Points and Bordeaux",
+    x = "Points", y = "Price"
+  )
+```
+
+
+## Model diagnostics 
+
+```{r Diagnostics}
+get_regression_summaries(m1)
+get_regression_summaries(m2)
+get_regression_summaries(m3)
+```
+
+# Moving to an ML framework
+
+## Split sample using Caret
+
+```{r Caret}
+set.seed(505)
+train_index <- createDataPartition(wine$price, times = 1, p = 0.8, list = FALSE)
+train <- wine[train_index, ]
+test <- wine[-train_index, ]
+head(test)
+```
+
+## Compare RMSE across models
+- Retrain on models on the training set
+```{r Models} 
+ms <- list(
+  lm(price ~ points, data = train),
+  lm(price ~ points + bordeaux, data = train),
+  lm(price ~ points * bordeaux, data = train)
+)
+```
+- Test them all under the same conditions.
+
+```{r RMSE}
+map(ms, function(m) {
+  get_regression_points(m, newdata = test) %>%
+    drop_na(residual) %>%
+    mutate(sq_residuals = residual^2) %>%
+    summarize(rmse = sqrt(mean(sq_residuals))) %>%
+    pluck("rmse")
+}) %>% unlist()
+```
+
+## Group Exercise (30m)
+
+1. Load the wine data set
+1. Visualize the relationship of points and price
+1. **Bonus:** Color the observations based on whether the wine is from Bordeaux 
+1. **Bonus+:** Include regression lines
+1. **Bonus++:** Pick a non-Bordeaux category.
+
+## Plot
+- Points vs. price.
+```{r Naive Plot}
+wine %>%
+  ggplot(aes(x = points, y = price)) +
+  geom_smooth()
+```
+## Bonus
+- Color the Bordeaux region.
+```{r Bonus1}
+wine %>%
+  ggplot(aes(x = points, y = price, color = bordeaux)) +
+  geom_smooth()
+```
+## Bonus+
+- Include regression lines
+```{r Bonus2}
+wine %>%
+  mutate(m = predict(lm(price ~ points, data = wine))) %>%
+  ggplot() +
+  geom_smooth(aes(x = points, y = price, color = bordeaux)) +
+  geom_line(aes(x = points, y = m), colour = "magenta")
+```
+
+## Bonus++
+- Let's look at "reserve".
+```{r Bonus3}
+wine %>%
+  mutate(reserve = grepl("Reserve", designation)) %>%
+  ggplot(aes(x = points, y = price, color = reserve)) +
+  geom_smooth()
+```
+## Bonus#
+- Anglophones to Francophiles.
+```{r Bonus4}
+wine %>%
+  mutate(reservæ = grepl("Reserve", designation, ignore.case = TRUE) |
+    grepl("Reserva", designation, ignore.case = TRUE)) %>%
+  ggplot(aes(x = points, y = price, color = reservæ)) +
+  geom_smooth()
+```
+
+## RჂservæ
+- Cross the Alps.
+```{r Bonus5}
+wine %>%
+  mutate(rჂservæ = grepl("Reserve|Reserva|Riserva", designation, ignore.case = TRUE)) %>%
+  ggplot(aes(x = points, y = price, color = rჂservæ)) +
+  geom_smooth()
+```
+
+
+
+# Dinner break 
+:::: {.columns}
+
+::: {.column width="50%"}
+- On "rჂservæ"
+  - Ie or Iota (asomtavruli Ⴢ, nuskhuri ⴢ, mkhedruli ჲ, mtavruli Ჲ) is the 15th letter of the three [Georgian scripts](https://en.wikipedia.org/wiki/Georgian_scripts)
+:::
+
+::: {.column width="50%"}
+![](images/nutcracker.png)
+:::
+
+::::
+
+
+# Classification and Ethics 
+
+## The math of it...
+
+- Suppose I'm trying to predict sex based on height.
+  - Don't do this in real life (obviously).
+- We start by 
+  - defining the outcome and predictors, and...
+  - creating training and test data.
+
+## Partition our Data
+
+```{r Partition}
+data(heights) # from library(dslabs)
+y <- heights$sex
+x <- heights$height
+set.seed(505)
+test_index <- createDataPartition(y, list = FALSE)
+test_set <- heights[test_index, ]
+train_set <- heights[-test_index, ]
+summary(heights)
+```
+
+Note: this vignette is adapted from [this book](https://rafalab.github.io/dsbook/introduction-to-machine-learning.html)
+
+## Guessing
+-   Let’s start by developing the simplest possible machine algorithm: guessing the outcome.
+```{r Guessing}
+y_hat <- sample(c("Male", "Female"), length(test_index), replace = TRUE)
+```
+Recall:
+
+>[Y hat (written ŷ ) is the predicted value of y (the dependent variable) in a regression equation. It can also be considered to be the average value of the response variable.](https://www.statisticshowto.com/y-hat-definition/)
+
+## Accuracy
+-   The overall accuracy is simply defined as the overall proportion that is predicted correctly:
+```{r Accuracy}
+mean(y_hat == test_set$sex)
+```
+- What would we have expected the accuracy to be?
+  - What much would we have expected accuracy to deviate from that expectionation?
+
+
+## Let's do better...
+
+```{r Better}
+summary <- heights %>%
+  group_by(sex) %>%
+  summarize(mean(height), sd(height))
+summary
+```
+
+## A simple predictive model
+
+- Idea: Predict `"Male"` if observation is within 2 standard deviations
+
+```{r Predict}
+male_mean_less_2sd <- summary[2, ]["mean(height)"] - 2 * summary[2, ]["sd(height)"]
+
+y_hat <- ifelse(x > male_mean_less_2sd, "Male", "Female") %>%
+  factor(levels = levels(test_set$sex))
+
+c(male_mean_less_2sd, mean(y == y_hat))
+```
+
+- The accuracy goes up from ~0.50 to about ~0.80!!
+
+## Let's optimize
+
+```{r Optimize}
+cutoff <- seq(61, 70)
+get_accuracy <- function(x) {
+  y_hat <- ifelse(train_set$height > x, "Male", "Female")
+  mean(y_hat == train_set$sex)
+}
+accuracy <- map(cutoff, get_accuracy)
+
+unlist(accuracy)
+```
+
+- Most are much higher than 0.5!! 
+
+## Let's take a gander
+- Easier for me to see it.
+```{r Gander}
+plot(cutoff, accuracy)
+```
+
+## Optimal Cutoff
+
+```{r Best cutoff}
+best_cutoff <- cutoff[which.max(accuracy)]
+best_cutoff
+```
+- Should we be cutting at an integer?
+
+## Apply & Evaluate
+
+```{r Cutoff test}
+y_hat <- ifelse(test_set$height > best_cutoff, "Male", "Female")
+mean(y_hat == test_set$sex)
+```
+
+
+## Confusion matrix
+```{r Matrix}
+table(predicted = y_hat, actual = test_set$sex) %>%
+  as.data.frame() %>%
+  ggplot(aes(x = predicted, y = actual)) +
+  geom_tile(aes(fill = Freq), color = "white") +
+  scale_fill_gradient(low = "white", high = "blue") +
+  geom_text(aes(label = Freq), vjust = "center", color = "black", size = 24) +
+  labs(title = "Confusion Matrix", x = "Predicted", y = "Actual")
+```
+
+## Accuracy by sex
+
+```{r Accuracy by sex}
+test_set %>%
+  mutate(y_hat = y_hat) %>%
+  group_by(sex) %>%
+  summarize(accuracy = mean(y_hat == sex))
+```
+&nbsp;
+
+It's raining men.
+
+## Debrief
+
+
+:::: {.columns}
+
+::: {.column width="50%"}
+```{r Boxes}
+heights %>%
+  ggplot() +
+  geom_boxplot(aes(height, sex))
+```
+:::
+
+::: {.column width="50%"}
+```{r Pie}
+slices <- heights %>%
+  group_by(sex) %>%
+  tally()
+pie(slices$n, labels = slices$sex)
+```
+:::
+
+::::
+
+
+## Moral of the story
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/l5aZJBLAu1E?si=r1vMnz5WGl7tLjlq" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+## Other ethical issues
+
+:::: {.columns}
+
+::: {.column width="50%"}
+- Demographic data
+- Profit optimizing
+- Autonomous cars
+- Recommendation engines
+:::
+
+::: {.column width="50%"}
+- Fair housing
+- Criminal sentencing
+- Choice of classification model
+- Drone warfare
+:::
+
+::::
+
+## Jameson on Ethics
+<blockquote>
+Reasonable people will disagree over subtle matters of right and wrong... thus, the important part of data ethics is committing to *consider* the ethical consequences of your choices. 
+
+The difference between "regular" ethics and data ethics is that algorithms scale really easily. Thus, seemingly small decisions can have wide-ranging impact.
+</blockquote>
+
+## Calvin on Ethics
+
+> No ethical \[computation\] under capitalism
+
+- Usage of data `|` computing is ethicial `iff` it challenges rather than strengthens existing power relations.
+
+
+# Vocabulary
+
+## ML Terms
+
+**Definition of ML:** using data to find a function that minimizes prediction error.
+
+:::: {.columns}
+
+::: {.column width="50%"}
+- Features
+- Variables
+- Outcome variable
+- Regression
+:::
+
+::: {.column width="50%"}
+- RMSE
+- Classification
+- Confusion matrix
+- Split Samples
+:::
+
+::::
+
+## **Features**  
+- **Definition:** Individual measurable properties or attributes of data.  
+- **Example:** Age, income, and education level in a dataset predicting loan approval.  
+
+## **Variables**  
+- **Definition:** Data points that can change and impact predictions.  
+- **Example:** Independent variables like weather, and dependent variables like crop yield.  
+
+## **Outcome Variable**  
+- **Definition:** The target or dependent variable the model predicts.  
+- **Example:** Predicting "passed" or "failed" for a student's exam result.  
+
+## Features vs. Variables  
+- **Features:** Inputs to the model, often selected or engineered from raw data.  
+  - Example: "Average monthly income" derived from raw transaction data.  
+- **Variables:** Broader term encompassing both inputs (independent) and outputs (dependent).  
+  - Example: "House price" (dependent variable) depends on features like size and location.
+
+## **Regression**  
+- **Definition:** Statistical method to model the relationship between variables.  
+- **Example:** Linear regression predicts house prices based on size and location.  
+
+## **RMSE (Root Mean Square Error)**  
+- **Definition:** A metric to measure prediction accuracy by averaging squared errors.  
+- **Example:** Lower RMSE in predicting drug response indicates a better model fit.  
+
+## **Classification**  
+- **Definition:** Task of predicting discrete categories or labels.  
+- **Example:** Classifying emails as "spam" or "not spam."  
+
+## **Confusion Matrix**  
+- **Definition:** A table showing model performance in classification tasks.  
+- **Example:** Matrix rows show true values; columns show predicted outcomes.  
+```{r Matrix Deux}
+#| echo: false
+table(predicted = y_hat, actual = test_set$sex) %>%
+  as.data.frame() %>%
+  ggplot(aes(x = predicted, y = actual)) +
+  geom_tile(aes(fill = Freq), color = "white") +
+  scale_fill_gradient(low = "white", high = "blue") +
+  geom_text(aes(label = Freq), vjust = "center", color = "black", size = 24) +
+  labs(title = "Confusion Matrix", x = "Predicted", y = "Actual")
+```
+
+## **Split Samples**  
+- **Definition:** Dividing data into training and testing subsets for validation.  
+- **Example:** 80% training, 20% testing ensures unbiased model evaluation.  
+```r
+test_set <- heights[test_index, ]
+train_set <- heights[-test_index, ]
+```
+
+
+# Bonus Slides:<br> Precision-recall
+
+## Precision-recall tradeoff
+
+- Precision: TP / (TP + FP)
+- Recall: TP / (TP + FN)
+- Imagine I have a fraud-detection model that gives 1,000 credit card transactions each a risk score.
+
+
+
+## Precision-recall tradeoff
+
+- Imagine I have a fraud-detection model that gives 1,000 credit card transactions each a risk score.
+- The company chooses a risk score cutoff of 77 (for some reason). 
+- There are 18 transactions with risk above 77. 12 are actually fraud. 20 fraudulent transactions have risk below 77.
+- What are precision, recall, and accuracy?
+
+
+## Precision-recall Exercise
+
+- Precision: TP / (TP + FP)
+- Recall: TP / (TP + FN)
+- 1,000 credit card transactions
+- The company chooses a risk score cutoff of 77
+- There are 18 transactions with risk above 77. 
+  - 12 are actually fraud. 
+  - 20 fraudulent transactions have risk below 77.
+- <span style="color:red;font-weight:bold">TODO</span> Calculate precision, recall, and accuracy.
+
+## Solutions
+```
+- Definitions
+  - Precision: TP / (TP + FP)
+  - Recall:    TP / (TP + FN)
+- Computation
+  - Precision: 12 / (12 + 06)  ~= 67%
+  - Recall:    12 / (12 + 20)  ~= 38%
+  - Accuracy: (12 + 962)/1000  ~= 97%
+```
+
+
+## Precision-recall tradeoff
+
+- Precision: TP / (TP + FP)
+- Recall: TP / (TP + FN)
+- Image: Hands-on machine learning, A. Geron
+
+![](images/precision_recall.png)
+
+
+
